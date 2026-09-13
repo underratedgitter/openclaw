@@ -93,6 +93,18 @@ does not reveal the full token.
     `openclaw-cli` uses `network_mode: "service:openclaw-gateway"` so CLI commands can reach the gateway over `127.0.0.1`. Treat this as a shared trust boundary. The compose config drops `NET_RAW`/`NET_ADMIN` and enables `no-new-privileges` on both `openclaw-gateway` and `openclaw-cli`.
   </Accordion>
 
+  <Accordion title="openclaw-cli stays unhealthy after a gateway restart">
+    Restarting the gateway container, with `docker compose restart openclaw-gateway` or `docker restart`, gives it a new network namespace. A long-running `openclaw-cli` container, such as one started by a plain `docker compose up -d`, keeps the old namespace. It can no longer reach the gateway over `127.0.0.1`, and its inherited health check stays `unhealthy` until the container restarts. Running `docker compose up -d` again does not repair it.
+
+    One-shot `docker compose run --rm openclaw-cli <command>` invocations are not affected, because each run joins the gateway's current namespace. If you keep a long-running `openclaw-cli` container, restart it after every gateway restart:
+
+    ```bash
+    docker compose restart openclaw-gateway
+    docker compose restart openclaw-cli
+    ```
+
+  </Accordion>
+
   <Accordion title="Docker Desktop DNS failures in openclaw-cli">
     Some Docker Desktop setups fail DNS lookups from the shared-network `openclaw-cli` sidecar after `NET_RAW` is dropped, showing up as `EAI_AGAIN` during npm-backed commands like `openclaw plugins install`. Keep the default hardened compose file for normal operation. The override below restores default capabilities for the `openclaw-cli` container only — use it for the one-off command that needs registry access, not as your default invocation:
 
